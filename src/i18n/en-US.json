@@ -1,0 +1,10 @@
+{
+  "open": "Open",
+  "newDocx": "New Word document",
+  "newXlsx": "New spreadsheet",
+  "newPptx": "New presentation",
+  "unsaved": "Unsaved changes",
+  "saved": "Saved",
+  "errorTitle": "Something went wrong",
+  "dismiss": "Dismiss"
+}

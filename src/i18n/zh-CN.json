@@ -1,0 +1,10 @@
+{
+  "open": "打开",
+  "newDocx": "新建 Word 文档",
+  "newXlsx": "新建表格",
+  "newPptx": "新建演示文稿",
+  "unsaved": "有未保存更改",
+  "saved": "已保存",
+  "errorTitle": "出错了",
+  "dismiss": "关闭"
+}

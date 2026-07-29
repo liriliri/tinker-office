@@ -1,0 +1,100 @@
+{
+  "name": "tinker-office",
+  "version": "0.1.0",
+  "description": "Office document editor plugin for TINKER",
+  "files": [
+    "dist/",
+    "icon.png"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "format": "prettier \"src/**/*.{ts,tsx,scss}\" \"*.{html,json,js,ts}\" --write"
+  },
+  "keywords": [
+    "tinker",
+    "office",
+    "onlyoffice",
+    "docx",
+    "xlsx",
+    "pptx"
+  ],
+  "tinker": {
+    "name": "Office",
+    "description": "Open and edit Word, Excel, and PowerPoint documents",
+    "main": "dist/renderer/index.html",
+    "icon": "icon.png",
+    "locales": {
+      "zh-CN": {
+        "name": "Office",
+        "description": "打开并编辑 Word、Excel、PowerPoint 文档"
+      }
+    },
+    "mcp": {
+      "tools": {
+        "open_file": {
+          "description": "Open a local office document in the editor. Updates the plugin UI.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Absolute path to a document (docx, xlsx, pptx, pdf, etc.)"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        "new_document": {
+          "description": "Create a new blank document in the editor.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "docx",
+                  "xlsx",
+                  "pptx"
+                ],
+                "description": "Document type to create"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "wasm-onlyoffice-sdk": "^0.1.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.22",
+    "i18next": "^25.8.4",
+    "licia": "^1.48.0",
+    "lucide-react": "^0.563.0",
+    "mobx": "^6.15.0",
+    "mobx-react-lite": "^4.1.1",
+    "postcss": "^8.5.6",
+    "prettier": "^3.8.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-i18next": "^16.5.4",
+    "sass": "^1.89.2",
+    "tailwindcss": "^4.1.17",
+    "tinker-api-types": "^0.4.0",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.19"
+  }
+}
