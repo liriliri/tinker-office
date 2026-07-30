@@ -2,6 +2,14 @@
   "name": "tinker-office",
   "version": "0.1.0",
   "description": "Office document editor plugin for TINKER",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liriliri/tinker-office.git"
+  },
+  "homepage": "https://github.com/liriliri/tinker-office",
+  "bugs": {
+    "url": "https://github.com/liriliri/tinker-office/issues"
+  },
   "files": [
     "dist/",
     "icon.png"
