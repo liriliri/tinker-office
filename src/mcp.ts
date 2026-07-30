@@ -1,17 +1,17 @@
 import type { Store } from './store'
-import { basename } from './types'
-import { openEditorWindow } from './lib/editorWindow'
-import { addRecentFile } from './lib/recentFiles'
+import { basename, type DocType } from './types'
 
 export function createMcpApi(getStore: () => Store) {
   const callTool = (name: string, args: Record<string, unknown>) => {
-    if (name === 'open_file') {
-      return openFile(getStore(), args as { path: string })
+    const store = getStore()
+    switch (name) {
+      case 'open_file':
+        return openFile(store, args as { path: string })
+      case 'new_document':
+        return newDocument(store, args as { type: DocType })
+      default:
+        throw new Error(`Unknown tool "${name}"`)
     }
-    if (name === 'new_document') {
-      return newDocument(args as { type: 'docx' | 'xlsx' | 'pptx' })
-    }
-    throw new Error(`Unknown tool "${name}"`)
   }
 
   tinker.registerMcp({ callTool })
@@ -19,22 +19,21 @@ export function createMcpApi(getStore: () => Store) {
   return { callTool }
 }
 
-async function openFile(_store: Store, args: { path: string }) {
+async function openFile(store: Store, args: { path: string }) {
   const path = args.path.trim()
-  addRecentFile(path)
-  openEditorWindow({ path })
+  await store.openPath(path)
   return {
     fileName: basename(path),
     path,
-    openedInNewWindow: true,
+    openedInNewWindow: store.isHomeWindow,
   }
 }
 
-async function newDocument(args: { type: 'docx' | 'xlsx' | 'pptx' }) {
-  openEditorWindow({ type: args.type })
+function newDocument(store: Store, args: { type: DocType }) {
+  store.newDocument(args.type)
   return {
     fileName: `Untitled.${args.type}`,
     docType: args.type,
-    openedInNewWindow: true,
+    openedInNewWindow: store.isHomeWindow,
   }
 }

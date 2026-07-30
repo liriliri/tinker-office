@@ -11,23 +11,14 @@ import {
   ensureTinker,
   getLaunchParams,
   openEditorWindow,
-  resolveFilePath,
   type LaunchParams,
 } from './lib/editorWindow'
+import { fileExists, toUint8Array } from './lib/util'
 
 ensureTinker()
 
-function toUint8Array(data: unknown): Uint8Array {
-  if (data instanceof Uint8Array) return data
-  if (data instanceof ArrayBuffer) return new Uint8Array(data)
-  if (ArrayBuffer.isView(data)) {
-    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-  }
-  throw new Error('Unsupported file data type')
-}
-
-export type EditorTheme = 'theme-light' | 'theme-dark'
-export type AppView = 'home' | 'editor'
+type EditorTheme = 'theme-light' | 'theme-dark'
+type AppView = 'home' | 'editor'
 
 const launch: LaunchParams | null = getLaunchParams()
 
@@ -122,12 +113,10 @@ export class Store {
     this.bumpEditor()
   }
 
-  async openFile(file: File, filePath?: string | null) {
-    const path = filePath || (await resolveFilePath(file))
-    await this.openPath(path)
-  }
-
   async openPath(filePath: string) {
+    if (!(await fileExists(filePath))) {
+      throw new Error(`File not found: ${filePath}`)
+    }
     if (this.isHomeWindow) {
       this.rememberPath(filePath)
       openEditorWindow({ path: filePath })

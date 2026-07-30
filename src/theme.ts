@@ -2,6 +2,7 @@ export const tw = {
   background: {
     primary: 'bg-[#f5f5f5] dark:bg-[#1e1e1e]',
     surface: 'bg-white dark:bg-[#252526]',
+    rail: 'bg-[#f3f2f1] dark:bg-[#2b2b2b]',
   },
 
   text: {
@@ -13,6 +14,26 @@ export const tw = {
 
   border: {
     secondary: 'border-[#ddd] dark:border-[#3c3c3c]',
+  },
+
+  accent: {
+    text: 'text-[#185abd]',
+    bg: 'bg-[#185abd]',
+    bgHover: 'hover:bg-[#0f4a9c]',
+    ring: 'ring-[#185abd]',
+    outline: 'focus-visible:outline-[#185abd]',
+  },
+
+  hover: {
+    railItem: 'hover:bg-white dark:hover:bg-[#3a3a3a]',
+    recentRow:
+      'hover:bg-[#edebe9] dark:hover:bg-[#333] focus-visible:bg-[#edebe9] focus-visible:outline-none dark:focus-visible:bg-[#333]',
+    iconBtn: 'hover:bg-[#ddd] dark:hover:bg-[#444]',
+  },
+
+  editor: {
+    closeBtn:
+      'text-black/45 hover:bg-black/10 hover:text-black/80 dark:text-white/50 dark:hover:bg-white/15 dark:hover:text-white/90',
   },
 
   scrollArea: {

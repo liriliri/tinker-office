@@ -1,16 +1,15 @@
 import className from 'licia/className'
-import { getDocConfig } from '../lib/documentTypes'
+import { getDocConfig } from '../lib/util'
 
 interface DocumentIconProps {
   type: string
   className?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md'
 }
 
 const SIZE = {
   sm: 'h-8 w-8',
   md: 'h-10 w-10',
-  lg: 'h-12 w-12',
 } as const
 
 export default function DocumentIcon({

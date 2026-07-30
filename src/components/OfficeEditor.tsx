@@ -11,6 +11,34 @@ import {
   resolveSaveFormat,
 } from '../lib/x2t'
 import store from '../store'
+import { tw } from '../theme'
+
+/** Make OnlyOffice's own header a frameless drag region (iframe CSS). */
+function injectTitlebarDragCss() {
+  const iframe = document.querySelector<HTMLIFrameElement>(
+    'iframe[name="frameEditor"]',
+  )
+  const doc = iframe?.contentDocument
+  if (!doc?.head || doc.getElementById('tinker-office-drag-style')) return
+
+  const style = doc.createElement('style')
+  style.id = 'tinker-office-drag-style'
+  style.textContent = `
+    #box-document-title {
+      -webkit-app-region: drag;
+    }
+    #box-document-title button,
+    #box-document-title .btn-slot,
+    #box-document-title a,
+    #box-document-title input,
+    #box-document-title #header-logo,
+    #box-document-title label,
+    #box-document-title [role="button"] {
+      -webkit-app-region: no-drag;
+    }
+  `
+  doc.head.appendChild(style)
+}
 
 type DocEditor = {
   destroyEditor: () => void
@@ -119,6 +147,9 @@ const OfficeEditor = observer(function OfficeEditor() {
           events: {
             onAppReady: () => {
               if (cancelled || !editorRef.current) return
+              injectTitlebarDragCss()
+              // Title DOM can lag slightly behind app-ready
+              requestAnimationFrame(injectTitlebarDragCss)
               if (Object.keys(media).length > 0) {
                 editorRef.current.sendCommand({
                   command: 'asc_setImageUrls',
@@ -231,15 +262,27 @@ const OfficeEditor = observer(function OfficeEditor() {
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
       <div id="oo-placeholder" className="h-full w-full" />
+      {/* Fallback drag strip: iframe -webkit-app-region is unreliable in Electron. */}
+      <div
+        aria-hidden
+        className="absolute top-0 z-40 h-7"
+        style={
+          {
+            left: 260,
+            right: 120,
+            WebkitAppRegion: 'drag',
+          } as React.CSSProperties
+        }
+      />
       <button
         type="button"
         title={t('close')}
         onClick={() => window.close()}
         className={className(
           'absolute top-1 right-1.5 z-50 inline-flex h-5 w-5 items-center justify-center rounded transition-colors',
-          'text-black/45 hover:bg-black/10 hover:text-black/80',
-          'dark:text-white/50 dark:hover:bg-white/15 dark:hover:text-white/90',
+          tw.editor.closeBtn,
         )}
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
         <X size={12} strokeWidth={2.5} />
       </button>

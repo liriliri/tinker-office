@@ -19,7 +19,7 @@ interface EmscriptenModule {
   wasmBinary?: ArrayBuffer
 }
 
-export interface ConversionResult {
+interface ConversionResult {
   fileName: string
   bin: Uint8Array
   media: Record<string, string>

@@ -1,5 +1,9 @@
-import type { DocType } from '../types'
+import filter from 'licia/filter'
+import isArr from 'licia/isArr'
+import isNum from 'licia/isNum'
+import isStr from 'licia/isStr'
 import { basename, docTypeFromExt } from '../types'
+import storage, { STORAGE_RECENT } from './util'
 
 export interface RecentFileRecord {
   path: string
@@ -8,34 +12,52 @@ export interface RecentFileRecord {
   updatedAt: number
 }
 
-const STORAGE_KEY = 'tinker-office-recent-files'
 const MAX_RECENT = 20
 
-export { STORAGE_KEY }
+function isRecentFileRecord(item: unknown): item is RecentFileRecord {
+  if (!item || typeof item !== 'object') return false
+  const rec = item as RecentFileRecord
+  return (
+    isStr(rec.path) &&
+    isStr(rec.name) &&
+    isStr(rec.type) &&
+    isNum(rec.updatedAt)
+  )
+}
 
-function readAll(): RecentFileRecord[] {
+function normalize(list: unknown): RecentFileRecord[] {
+  if (!isArr(list)) return []
+  return filter(list, isRecentFileRecord) as RecentFileRecord[]
+}
+
+function migrateLegacy(): RecentFileRecord[] | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as RecentFileRecord[]
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (item) =>
-        item &&
-        typeof item.path === 'string' &&
-        typeof item.name === 'string' &&
-        typeof item.updatedAt === 'number',
-    )
+    const raw = localStorage.getItem('tinker-office-recent-files')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    localStorage.removeItem('tinker-office-recent-files')
+    const records = normalize(parsed)
+    return records.length > 0 ? records : null
   } catch {
-    return []
+    return null
   }
 }
 
+function readAll(): RecentFileRecord[] {
+  const saved = storage.get(STORAGE_RECENT)
+  if (isArr(saved)) return normalize(saved)
+
+  const legacy = migrateLegacy()
+  if (legacy) {
+    writeAll(legacy)
+    return legacy.slice(0, MAX_RECENT)
+  }
+
+  return []
+}
+
 function writeAll(records: RecentFileRecord[]) {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(records.slice(0, MAX_RECENT)),
-  )
+  storage.set(STORAGE_RECENT, records.slice(0, MAX_RECENT))
 }
 
 export function getRecentFiles(): RecentFileRecord[] {
@@ -52,24 +74,19 @@ export function addRecentFile(filePath: string): RecentFileRecord[] {
     type,
     updatedAt: Date.now(),
   }
-  const rest = readAll().filter((item) => item.path !== filePath)
+  const rest = filter(readAll(), (item) => item.path !== filePath)
   const records = [next, ...rest].slice(0, MAX_RECENT)
   writeAll(records)
   return records
 }
 
 export function removeRecentFile(filePath: string): RecentFileRecord[] {
-  const records = readAll().filter((item) => item.path !== filePath)
+  const records = filter(readAll(), (item) => item.path !== filePath)
   writeAll(records)
   return records
 }
 
-export function clearRecentFiles(): RecentFileRecord[] {
-  writeAll([])
-  return []
-}
-
-export type RelativeTimeKey =
+type RelativeTimeKey =
   | 'timeJustNow'
   | 'timeMinutesAgo'
   | 'timeHoursAgo'
