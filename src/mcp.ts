@@ -8,7 +8,7 @@ export function createMcpApi(getStore: () => Store) {
     if (name === 'new_document') {
       return newDocument(getStore(), args as { type: 'docx' | 'xlsx' | 'pptx' })
     }
-    return `Error: Unknown tool "${name}"`
+    throw new Error(`Unknown tool "${name}"`)
   }
 
   tinker.registerMcp({ callTool })
@@ -17,15 +17,11 @@ export function createMcpApi(getStore: () => Store) {
 }
 
 async function openFile(store: Store, args: { path: string }) {
-  try {
-    await store.openPath(args.path.trim())
-    return {
-      fileName: store.fileName,
-      docType: store.docType,
-      editorKey: store.editorKey,
-    }
-  } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Failed to open file'}`
+  await store.openPath(args.path.trim())
+  return {
+    fileName: store.fileName,
+    docType: store.docType,
+    editorKey: store.editorKey,
   }
 }
 

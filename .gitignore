@@ -1,6 +1,6 @@
 references/
 node_modules/
 dist/
-public/
 .claude/
+.DS_Store
 package-lock.json

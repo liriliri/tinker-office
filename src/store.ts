@@ -1,7 +1,11 @@
 import { makeAutoObservable, runInAction } from 'mobx'
-import type { OfficeTheme } from 'wasm-onlyoffice-sdk'
 import { toErrorMessage } from './errorMessage'
-import { basename, type DocType, OFFICE_EXTENSIONS } from './types'
+import {
+  basename,
+  docTypeFromExt,
+  type DocType,
+  OFFICE_EXTENSIONS,
+} from './types'
 import { createMcpApi } from './mcp'
 
 function toUint8Array(data: unknown): Uint8Array {
@@ -12,6 +16,8 @@ function toUint8Array(data: unknown): Uint8Array {
   }
   throw new Error('Unsupported file data type')
 }
+
+export type EditorTheme = 'theme-light' | 'theme-dark'
 
 export class Store {
   readonly mcp = createMcpApi(() => this)
@@ -25,7 +31,7 @@ export class Store {
   ready: boolean = false
   error: string | null = null
   language: string = 'en'
-  theme: OfficeTheme = 'theme-light'
+  theme: EditorTheme = 'theme-light'
 
   constructor() {
     makeAutoObservable(this, {
@@ -51,7 +57,8 @@ export class Store {
   }
 
   setThemeFromApp(appTheme: string) {
-    const next = appTheme === 'dark' ? 'theme-dark' : 'theme-light'
+    const next: EditorTheme =
+      appTheme === 'dark' ? 'theme-dark' : 'theme-light'
     if (this.theme === next) return
     this.theme = next
     this.bumpEditor()
@@ -69,9 +76,12 @@ export class Store {
   }
 
   openFile(file: File, filePath?: string | null) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const mapped = docTypeFromExt(ext)
     this.file = file
     this.filePath = filePath || null
     this.fileName = file.name
+    if (mapped) this.docType = mapped
     this.isDirty = false
     this.ready = false
     this.error = null
@@ -82,7 +92,7 @@ export class Store {
     const data = await tinker.readFile(filePath)
     const name = basename(filePath)
     const bytes = toUint8Array(data)
-    const file = new File([bytes], name)
+    const file = new File([bytes.slice()], name)
     this.openFile(file, filePath)
   }
 
@@ -106,7 +116,7 @@ export class Store {
     }
   }
 
-  async saveBlob(blob: Blob, filename: string) {
+  async saveBytes(bytes: Uint8Array, filename: string) {
     const defaultPath = this.filePath || filename
     const result = await tinker.showSaveDialog({
       defaultPath,
@@ -119,7 +129,6 @@ export class Store {
     })
     if (result.canceled || !result.filePath) return
 
-    const bytes = new Uint8Array(await blob.arrayBuffer())
     await tinker.writeFile(result.filePath, bytes)
     runInAction(() => {
       this.filePath = result.filePath!

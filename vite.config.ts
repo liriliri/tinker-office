@@ -9,12 +9,6 @@ export default defineConfig(() => {
     base: '',
     plugins: [react()],
     publicDir: 'public',
-    optimizeDeps: {
-      exclude: ['wasm-onlyoffice-sdk'],
-    },
-    worker: {
-      format: 'es',
-    },
     build: {
       outDir: path.dirname(pkg.tinker.main),
       emptyOutDir: true,

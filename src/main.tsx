@@ -52,7 +52,6 @@ const OfficeApp = observer(() => {
   tinker.on('changeLanguage', (lang: string) => {
     i18n.changeLanguage(lang)
     store.setLanguage(lang)
-    store.newDocument(store.docType)
   })
 
   const container = document.getElementById('app') as HTMLElement

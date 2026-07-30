@@ -1,26 +1,23 @@
 # tinker-office
 
-Offline Office document editor for [TINKER](https://github.com/liriliri/tinker), powered by OnlyOffice WebAssembly.
+Office document editor plugin for [TINKER](https://tinker.liriliri.io/), based on the local OnlyOffice stack from [onlyoffice-web-local](https://github.com/sweetwisdom/onlyoffice-web-local).
 
 ## Features
 
-- Create Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`) documents
-- Open common Office formats (docx, xlsx, pptx, pdf, odt, …)
-- Save via native file dialogs
-- Light / dark theme follows TINKER
+- Create / open / edit Word (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`)
+- Local conversion via x2t WASM (no document server)
+- MCP tools: `open_file`, `new_document`
 
-## Development
-
-OnlyOffice static assets live under `public/`:
-
-- `public/v9.3.0.24-1/` — web-apps / sdkjs / fonts
-- `public/x2t/` — x2t WASM converter
+## Develop
 
 ```bash
 npm install
 npm run build
 npm link
-tinker quit && tinker open office
 ```
 
-Dev loop: `npm run dev` + `tinker restart office`.
+Restart Tinker after `npm link`, then:
+
+```bash
+tinker open office
+```

@@ -22,7 +22,7 @@
   "tinker": {
     "name": "Office",
     "description": "Open and edit Word, Excel, and PowerPoint documents",
-    "main": "dist/renderer/index.html",
+    "main": "dist/index.html",
     "icon": "icon.png",
     "locales": {
       "zh-CN": {
@@ -71,16 +71,12 @@
       }
     }
   },
-  "dependencies": {
-    "wasm-onlyoffice-sdk": "^0.1.7"
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",
-    "autoprefixer": "^10.4.22",
     "i18next": "^25.8.4",
     "licia": "^1.48.0",
     "lucide-react": "^0.563.0",
