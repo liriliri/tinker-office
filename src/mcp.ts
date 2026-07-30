@@ -1,4 +1,7 @@
 import type { Store } from './store'
+import { basename } from './types'
+import { openEditorWindow } from './lib/editorWindow'
+import { addRecentFile } from './lib/recentFiles'
 
 export function createMcpApi(getStore: () => Store) {
   const callTool = (name: string, args: Record<string, unknown>) => {
@@ -6,7 +9,7 @@ export function createMcpApi(getStore: () => Store) {
       return openFile(getStore(), args as { path: string })
     }
     if (name === 'new_document') {
-      return newDocument(getStore(), args as { type: 'docx' | 'xlsx' | 'pptx' })
+      return newDocument(args as { type: 'docx' | 'xlsx' | 'pptx' })
     }
     throw new Error(`Unknown tool "${name}"`)
   }
@@ -16,23 +19,22 @@ export function createMcpApi(getStore: () => Store) {
   return { callTool }
 }
 
-async function openFile(store: Store, args: { path: string }) {
-  await store.openPath(args.path.trim())
+async function openFile(_store: Store, args: { path: string }) {
+  const path = args.path.trim()
+  addRecentFile(path)
+  openEditorWindow({ path })
   return {
-    fileName: store.fileName,
-    docType: store.docType,
-    editorKey: store.editorKey,
+    fileName: basename(path),
+    path,
+    openedInNewWindow: true,
   }
 }
 
-async function newDocument(
-  store: Store,
-  args: { type: 'docx' | 'xlsx' | 'pptx' }
-) {
-  store.newDocument(args.type)
+async function newDocument(args: { type: 'docx' | 'xlsx' | 'pptx' }) {
+  openEditorWindow({ type: args.type })
   return {
-    fileName: store.fileName,
-    docType: store.docType,
-    editorKey: store.editorKey,
+    fileName: `Untitled.${args.type}`,
+    docType: args.type,
+    openedInNewWindow: true,
   }
 }

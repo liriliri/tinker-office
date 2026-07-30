@@ -1,4 +1,4 @@
-type DocumentType = 'word' | 'cell' | 'slide'
+import { OFFICE_EXTENSIONS } from '../types'
 
 interface EmscriptenFileSystem {
   mkdir(path: string): void
@@ -13,7 +13,7 @@ interface EmscriptenModule {
     funcName: string,
     returnType: string,
     argTypes: string[],
-    args: unknown[]
+    args: unknown[],
   ) => number
   onRuntimeInitialized: () => void
   wasmBinary?: ArrayBuffer
@@ -21,7 +21,6 @@ interface EmscriptenModule {
 
 export interface ConversionResult {
   fileName: string
-  type: DocumentType
   bin: Uint8Array
   media: Record<string, string>
 }
@@ -32,20 +31,7 @@ declare global {
   }
 }
 
-const DOCUMENT_TYPE_MAP: Record<string, DocumentType> = {
-  docx: 'word',
-  doc: 'word',
-  odt: 'word',
-  rtf: 'word',
-  txt: 'word',
-  xlsx: 'cell',
-  xls: 'cell',
-  ods: 'cell',
-  csv: 'cell',
-  pptx: 'slide',
-  ppt: 'slide',
-  odp: 'slide',
-}
+const SUPPORTED_EXTENSIONS = new Set<string>(OFFICE_EXTENSIONS)
 
 const WORKING_DIRS = [
   '/working',
@@ -59,15 +45,49 @@ const WASM_PATH = './wasm/x2t/x2t.wasm'
 const INIT_TIMEOUT = 30000
 
 const oAscFileType = {
-  DOCX: 65,
-  XLSX: 257,
-  PPTX: 129,
+  UNKNOWN: 0,
   PDF: 513,
+  PDFA: 521,
+  DOCX: 65,
+  DOC: 66,
+  ODT: 67,
+  RTF: 68,
+  TXT: 69,
+  HTML: 70,
+  DOCM: 75,
+  DOTX: 76,
+  XLSX: 257,
+  XLS: 258,
+  ODS: 259,
+  CSV: 260,
+  XLSM: 261,
+  XLTX: 262,
+  PPTX: 129,
+  PPT: 130,
+  ODP: 131,
+  PPSX: 132,
+  PPTM: 133,
 } as const
 
-export const c_oAscFileType2 = Object.fromEntries(
-  Object.entries(oAscFileType).map(([key, value]) => [value, key])
+const c_oAscFileType2 = Object.fromEntries(
+  Object.entries(oAscFileType).map(([key, value]) => [value, key]),
 ) as Record<number, keyof typeof oAscFileType>
+
+/** Resolve save target format from OnlyOffice outputformat or filename. */
+export function resolveSaveFormat(
+  outputformat: number | undefined,
+  fileName: string,
+): keyof typeof oAscFileType {
+  if (outputformat != null && c_oAscFileType2[outputformat]) {
+    const mapped = c_oAscFileType2[outputformat]
+    if (mapped !== 'UNKNOWN') return mapped
+  }
+  const ext = fileName.split('.').pop()?.toUpperCase()
+  if (ext && ext in oAscFileType) {
+    return ext as keyof typeof oAscFileType
+  }
+  return 'DOCX'
+}
 
 async function fetchCompressed(url: string): Promise<Uint8Array> {
   const res = await fetch(url)
@@ -160,7 +180,9 @@ class X2TConverter {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           if (!this.isReady) {
-            reject(new Error(`X2T initialization timeout after ${INIT_TIMEOUT}ms`))
+            reject(
+              new Error(`X2T initialization timeout after ${INIT_TIMEOUT}ms`),
+            )
           }
         }, INIT_TIMEOUT)
 
@@ -197,10 +219,10 @@ class X2TConverter {
     }
   }
 
-  private getDocumentType(extension: string): DocumentType {
-    const docType = DOCUMENT_TYPE_MAP[extension.toLowerCase()]
-    if (!docType) throw new Error(`Unsupported file format: ${extension}`)
-    return docType
+  private assertSupportedExtension(extension: string): void {
+    if (!SUPPORTED_EXTENSIONS.has(extension.toLowerCase())) {
+      throw new Error(`Unsupported file format: ${extension}`)
+    }
   }
 
   private sanitizeFileName(input: string): string {
@@ -220,14 +242,19 @@ class X2TConverter {
 
   private executeConversion(paramsPath: string): void {
     if (!this.x2tModule) throw new Error('X2T module not initialized')
-    const result = this.x2tModule.ccall('main1', 'number', ['string'], [paramsPath])
+    const result = this.x2tModule.ccall(
+      'main1',
+      'number',
+      ['string'],
+      [paramsPath],
+    )
     if (result !== 0) throw new Error(`Conversion failed with code: ${result}`)
   }
 
   private createConversionParams(
     fromPath: string,
     toPath: string,
-    additionalParams = ''
+    additionalParams = '',
   ): string {
     return `<?xml version="1.0" encoding="utf-8"?>
 <TaskQueueDataConvert xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -247,11 +274,14 @@ class X2TConverter {
       for (const file of files) {
         if (file === '.' || file === '..') continue
         try {
-          const fileData = this.x2tModule.FS.readFile(`/working/media/${file}`, {
-            encoding: 'binary',
-          })
+          const fileData = this.x2tModule.FS.readFile(
+            `/working/media/${file}`,
+            {
+              encoding: 'binary',
+            },
+          )
           media[`media/${file}`] = URL.createObjectURL(
-            new Blob([toOwnedBytes(fileData)])
+            new Blob([toOwnedBytes(fileData)]),
           )
         } catch {
           // skip unreadable media
@@ -267,7 +297,7 @@ class X2TConverter {
     await this.initialize()
     const fileName = file.name
     const fileExt = fileName.split('.').pop()?.toLowerCase() || ''
-    const documentType = this.getDocumentType(fileExt)
+    this.assertSupportedExtension(fileExt)
 
     try {
       const data = new Uint8Array(await file.arrayBuffer())
@@ -278,40 +308,44 @@ class X2TConverter {
       this.x2tModule!.FS.writeFile(inputPath, data)
       this.x2tModule!.FS.writeFile(
         '/working/params.xml',
-        this.createConversionParams(inputPath, outputPath)
+        this.createConversionParams(inputPath, outputPath),
       )
       this.executeConversion('/working/params.xml')
 
       return {
         fileName: sanitizedName,
-        type: documentType,
         bin: this.x2tModule!.FS.readFile(outputPath),
         media: this.readMediaFiles(),
       }
     } catch (error) {
       throw new Error(
-        `Document conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Document conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       )
     }
   }
 
   async convertBinToDocument(
-    bin: Uint8Array,
+    bin: Uint8Array | string,
     originalFileName: string,
-    targetExt = 'DOCX'
+    targetExt = 'DOCX',
   ): Promise<{ fileName: string; data: Uint8Array }> {
     await this.initialize()
     const sanitizedBase = this.sanitizeFileName(originalFileName).replace(
       /\.[^/.]+$/,
-      ''
+      '',
     )
     const binFileName = `${sanitizedBase}.bin`
     const outputFileName = `${sanitizedBase}.${targetExt.toLowerCase()}`
 
     try {
-      this.x2tModule!.FS.writeFile(`/working/${binFileName}`, bin)
+      // Asc strings (DOCY;vN;size;base64) must be written as text when
+      // m_bIsNoBase64 is false — same as onlyoffice-web-local.
+      this.x2tModule!.FS.writeFile(
+        `/working/${binFileName}`,
+        typeof bin === 'string' ? bin : toOwnedBytes(bin),
+      )
       let additionalParams = ''
-      if (targetExt === 'PDF') {
+      if (targetExt === 'PDF' || targetExt === 'PDFA') {
         additionalParams = '<m_sFontDir>/working/fonts/</m_sFontDir>'
       }
       this.x2tModule!.FS.writeFile(
@@ -319,8 +353,8 @@ class X2TConverter {
         this.createConversionParams(
           `/working/${binFileName}`,
           `/working/${outputFileName}`,
-          additionalParams
-        )
+          additionalParams,
+        ),
       )
       this.executeConversion('/working/params.xml')
       return {
@@ -329,7 +363,7 @@ class X2TConverter {
       }
     } catch (error) {
       throw new Error(
-        `Bin to document conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Bin to document conversion failed (${targetExt}): ${error instanceof Error ? error.message : 'Unknown error'}`,
       )
     }
   }
@@ -339,9 +373,10 @@ const x2tConverter = new X2TConverter()
 
 export const initX2TScript = () => x2tConverter.loadScript()
 export const initX2T = () => x2tConverter.initialize()
-export const convertDocument = (file: File) => x2tConverter.convertDocument(file)
+export const convertDocument = (file: File) =>
+  x2tConverter.convertDocument(file)
 export const convertBinToDocument = (
-  bin: Uint8Array,
+  bin: Uint8Array | string,
   fileName: string,
-  targetExt?: string
+  targetExt?: string,
 ) => x2tConverter.convertBinToDocument(bin, fileName, targetExt)

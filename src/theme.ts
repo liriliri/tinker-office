@@ -5,7 +5,9 @@ export const tw = {
   },
 
   text: {
+    primary: 'text-[#1a1a1a] dark:text-[#e8e8e8]',
     secondary: 'text-[#333] dark:text-[#ccc]',
+    tertiary: 'text-[#666] dark:text-[#999]',
     quaternary: 'text-[#888] dark:text-[#777]',
   },
 
@@ -13,28 +15,24 @@ export const tw = {
     secondary: 'border-[#ddd] dark:border-[#3c3c3c]',
   },
 
-  button: {
-    secondary: {
-      base: 'bg-white dark:bg-[#2d2d2d]',
-      hover: 'hover:bg-[#f0f0f0] dark:hover:bg-[#383838]',
-      border: 'border-[#ccc] dark:border-[#555]',
-    },
-    active: {
-      base: 'bg-[#e8f0fe] dark:bg-[#333]',
-      border: 'border-[#0066cc] dark:border-[#0078d4]',
-      text: 'text-[#0066cc] dark:text-[#4da3ff]',
-    },
+  scrollArea: {
+    root: 'min-h-0 flex-1 overflow-hidden',
+    viewport: 'h-full w-full [&>div]:!block',
+    scrollbar:
+      'flex touch-none select-none p-0.5 transition-colors data-[orientation=vertical]:w-1.5 data-[state=visible]:opacity-100 data-[state=hidden]:opacity-0',
+    thumb:
+      'relative flex-1 rounded-full bg-[#ccc] hover:bg-[#aaa] dark:bg-[#555] dark:hover:bg-[#666]',
   },
 
-  error: {
-    background: 'bg-red-50 dark:bg-red-950/30',
-    border: 'border-red-200 dark:border-red-900/50',
-    icon: {
-      text: 'text-red-600 dark:text-red-400',
-    },
-    text: {
-      title: 'text-red-800 dark:text-red-300',
-      content: 'text-red-700 dark:text-red-400',
-    },
+  toast: {
+    root: 'flex items-start gap-3 rounded-lg border border-[#ddd] bg-white px-4 py-3 shadow-lg dark:border-[#3c3c3c] dark:bg-[#2d2d2d]',
+    title:
+      'text-[12px] font-semibold tracking-wide text-red-600 dark:text-red-400',
+    description:
+      'mt-0.5 break-words text-[12px] leading-relaxed text-[#666] dark:text-[#999]',
+    close:
+      'shrink-0 cursor-pointer border-none bg-transparent p-0 text-[#888] hover:text-[#333] dark:text-[#777] dark:hover:text-[#eee]',
+    viewport:
+      'fixed top-4 left-1/2 z-[100] flex w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-2 outline-none',
   },
 }

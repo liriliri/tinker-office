@@ -1,26 +1,26 @@
 import { useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useTranslation } from 'react-i18next'
+import className from 'licia/className'
+import { X } from 'lucide-react'
 import { emptyBin } from '../lib/emptyBin'
 import {
-  c_oAscFileType2,
   convertBinToDocument,
   convertDocument,
   initX2T,
-  initX2TScript,
+  resolveSaveFormat,
 } from '../lib/x2t'
 import store from '../store'
-import { toErrorMessage } from '../errorMessage'
+
+type DocEditor = {
+  destroyEditor: () => void
+  sendCommand: (cmd: { command: string; data?: unknown }) => void
+}
 
 declare global {
   interface Window {
     DocsAPI?: {
-      DocEditor: new (
-        id: string,
-        config: Record<string, unknown>
-      ) => {
-        destroyEditor: () => void
-        sendCommand: (cmd: { command: string; data?: unknown }) => void
-      }
+      DocEditor: new (id: string, config: Record<string, unknown>) => DocEditor
     }
   }
 }
@@ -50,11 +50,9 @@ function mimeFromExt(ext: string): string {
 }
 
 const OfficeEditor = observer(function OfficeEditor() {
+  const { t } = useTranslation()
   const { file, fileName, editorKey, language, theme } = store
-  const editorRef = useRef<{
-    destroyEditor: () => void
-    sendCommand: (cmd: { command: string; data?: unknown }) => void
-  } | null>(null)
+  const editorRef = useRef<DocEditor | null>(null)
   const mediaRef = useRef<Record<string, string>>({})
 
   useEffect(() => {
@@ -62,24 +60,17 @@ const OfficeEditor = observer(function OfficeEditor() {
     const media = mediaRef.current
 
     async function boot() {
-      store.setReady(false)
-      store.setError(null)
-
       try {
-        await initX2TScript()
-        await loadEditorApi()
-        await initX2T()
+        await Promise.all([loadEditorApi(), initX2T()])
         if (cancelled) return
 
         const fileType = fileName.split('.').pop()?.toLowerCase() || 'docx'
         let binData: ArrayBuffer | Uint8Array | string
-        let mediaMap: Record<string, string> | undefined
 
         if (file) {
           const converted = await convertDocument(file)
           if (cancelled) return
           binData = converted.bin
-          mediaMap = converted.media
           Object.assign(media, converted.media)
         } else {
           const template = emptyBin[`.${fileType}`]
@@ -128,10 +119,10 @@ const OfficeEditor = observer(function OfficeEditor() {
           events: {
             onAppReady: () => {
               if (cancelled || !editorRef.current) return
-              if (mediaMap) {
+              if (Object.keys(media).length > 0) {
                 editorRef.current.sendCommand({
                   command: 'asc_setImageUrls',
-                  data: { urls: mediaMap },
+                  data: { urls: media },
                 })
               }
               editorRef.current.sendCommand({
@@ -139,44 +130,35 @@ const OfficeEditor = observer(function OfficeEditor() {
                 data: { buf: binData },
               })
             },
-            onDocumentReady: () => {
-              if (cancelled) return
-              store.setReady(true)
-            },
-            onDocumentStateChange: (event: { data?: boolean }) => {
-              if (typeof event?.data === 'boolean') {
-                store.setDirty(event.data)
-              }
-            },
-            onError: (event: { data?: unknown }) => {
-              store.setError(toErrorMessage(event?.data ?? 'Editor error'))
-            },
+            // Mirrors onlyoffice-web-local DocumentHandler.handleSaveDocument
             onSave: async (event: {
-              data?: { data?: Uint8Array; option?: { outputformat?: number } }
+              data?: {
+                data?: { data?: string | Uint8Array }
+                option?: { outputformat?: number }
+              }
             }) => {
+              const editor = editorRef.current
               try {
-                const payload = event?.data
-                if (!payload?.data || !editorRef.current) return
-                const raw = payload.data
-                const bin =
-                  raw instanceof Uint8Array
-                    ? raw
-                    : new Uint8Array(raw as ArrayBuffer)
-                const format =
-                  c_oAscFileType2[payload.option?.outputformat ?? 0] || 'DOCX'
-                const result = await convertBinToDocument(
-                  bin,
-                  fileName,
-                  format
-                )
-                await store.saveBytes(result.data, result.fileName)
-                editorRef.current.sendCommand({
+                const { data, option } = event?.data ?? {}
+                if (data?.data) {
+                  const format = resolveSaveFormat(
+                    option?.outputformat,
+                    fileName,
+                  )
+                  const result = await convertBinToDocument(
+                    data.data,
+                    fileName,
+                    format,
+                  )
+                  await store.saveBytes(result.data, result.fileName)
+                }
+                editor?.sendCommand({
                   command: 'asc_onSaveCallback',
                   data: { err_code: 0 },
                 })
               } catch (error) {
-                store.setError(toErrorMessage(error))
-                editorRef.current?.sendCommand({
+                store.setError(error)
+                editor?.sendCommand({
                   command: 'asc_onSaveCallback',
                   data: { err_code: 1 },
                 })
@@ -188,34 +170,33 @@ const OfficeEditor = observer(function OfficeEditor() {
                 file?: string
               }
             }) => {
+              const editor = editorRef.current
               try {
                 const eventData = event?.data
-                if (!eventData?.data || !eventData.file || !editorRef.current) {
-                  return
-                }
-                const imageData = eventData.data
+                if (!eventData?.data || !eventData.file || !editor) return
                 const imgName = eventData.file
                 const ext = imgName.split('.').pop()?.toLowerCase() || 'png'
                 const objectUrl = URL.createObjectURL(
-                  new Blob([new Uint8Array(imageData)], {
+                  new Blob([new Uint8Array(eventData.data)], {
                     type: mimeFromExt(ext),
-                  })
+                  }),
                 )
                 media[`media/${imgName}`] = objectUrl
-                editorRef.current.sendCommand({
+                editor.sendCommand({
                   command: 'asc_setImageUrls',
                   data: { urls: media },
                 })
-                editorRef.current.sendCommand({
+                editor.sendCommand({
                   command: 'asc_writeFileCallback',
                   data: { path: objectUrl, imgName },
                 })
               } catch (error) {
-                editorRef.current?.sendCommand({
+                editor?.sendCommand({
                   command: 'asc_writeFileCallback',
                   data: {
                     success: false,
-                    error: error instanceof Error ? error.message : String(error),
+                    error:
+                      error instanceof Error ? error.message : String(error),
                   },
                 })
               }
@@ -223,7 +204,7 @@ const OfficeEditor = observer(function OfficeEditor() {
           },
         })
       } catch (error) {
-        if (!cancelled) store.setError(toErrorMessage(error))
+        if (!cancelled) store.setError(error)
       }
     }
 
@@ -244,11 +225,24 @@ const OfficeEditor = observer(function OfficeEditor() {
       }
       mediaRef.current = {}
     }
-  }, [editorKey, file, fileName, language, theme])
+    // fileName omitted: saveBytes updates it after save-as and must not remount
+  }, [editorKey, file, language, theme])
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
       <div id="oo-placeholder" className="h-full w-full" />
+      <button
+        type="button"
+        title={t('close')}
+        onClick={() => window.close()}
+        className={className(
+          'absolute top-1 right-1.5 z-50 inline-flex h-5 w-5 items-center justify-center rounded transition-colors',
+          'text-black/45 hover:bg-black/10 hover:text-black/80',
+          'dark:text-white/50 dark:hover:bg-white/15 dark:hover:text-white/90',
+        )}
+      >
+        <X size={12} strokeWidth={2.5} />
+      </button>
     </div>
   )
 })

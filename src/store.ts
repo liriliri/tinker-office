@@ -1,12 +1,21 @@
 import { makeAutoObservable, runInAction } from 'mobx'
-import { toErrorMessage } from './errorMessage'
-import {
-  basename,
-  docTypeFromExt,
-  type DocType,
-  OFFICE_EXTENSIONS,
-} from './types'
+import { basename, type DocType, OFFICE_EXTENSIONS } from './types'
 import { createMcpApi } from './mcp'
+import {
+  addRecentFile,
+  getRecentFiles,
+  removeRecentFile,
+  type RecentFileRecord,
+} from './lib/recentFiles'
+import {
+  ensureTinker,
+  getLaunchParams,
+  openEditorWindow,
+  resolveFilePath,
+  type LaunchParams,
+} from './lib/editorWindow'
+
+ensureTinker()
 
 function toUint8Array(data: unknown): Uint8Array {
   if (data instanceof Uint8Array) return data
@@ -18,20 +27,24 @@ function toUint8Array(data: unknown): Uint8Array {
 }
 
 export type EditorTheme = 'theme-light' | 'theme-dark'
+export type AppView = 'home' | 'editor'
+
+const launch: LaunchParams | null = getLaunchParams()
 
 export class Store {
-  readonly mcp = createMcpApi(() => this)
+  /** MCP is registered only on the home window to avoid multi-window clashes. */
+  readonly mcp = launch ? null : createMcpApi(() => this)
 
+  view: AppView = launch ? 'editor' : 'home'
   file: File | null = null
   filePath: string | null = null
   fileName: string = 'Untitled.docx'
-  docType: DocType = 'docx'
-  isDirty: boolean = false
   editorKey: number = 0
-  ready: boolean = false
-  error: string | null = null
   language: string = 'en'
   theme: EditorTheme = 'theme-light'
+  recentFiles: RecentFileRecord[] = []
+  toastOpen = false
+  toastMsg = ''
 
   constructor() {
     makeAutoObservable(this, {
@@ -39,16 +52,46 @@ export class Store {
     })
   }
 
-  setDirty(isDirty: boolean) {
-    this.isDirty = isDirty
+  get isHomeWindow() {
+    return !launch
   }
 
-  setReady(ready: boolean) {
-    this.ready = ready
+  async initFromLaunch() {
+    if (!launch) return
+    try {
+      if (launch.mode === 'path') {
+        await this.loadPath(launch.path)
+      } else {
+        this.loadNewDocument(launch.type)
+      }
+    } catch (error) {
+      this.setError(error)
+    }
   }
 
-  setError(error: string | null) {
-    this.error = error
+  loadRecentFiles() {
+    this.recentFiles = getRecentFiles()
+  }
+
+  rememberPath(filePath: string) {
+    this.recentFiles = addRecentFile(filePath)
+  }
+
+  removeRecent(filePath: string) {
+    this.recentFiles = removeRecentFile(filePath)
+  }
+
+  setError(error: unknown) {
+    if (error == null || error === '') return
+    this.toastMsg = error instanceof Error ? error.message : String(error)
+    this.toastOpen = false
+    requestAnimationFrame(() => {
+      this.toastOpen = true
+    })
+  }
+
+  setToastOpen(open: boolean) {
+    this.toastOpen = open
   }
 
   setLanguage(language: string) {
@@ -57,43 +100,65 @@ export class Store {
   }
 
   setThemeFromApp(appTheme: string) {
-    const next: EditorTheme =
-      appTheme === 'dark' ? 'theme-dark' : 'theme-light'
+    const next: EditorTheme = appTheme === 'dark' ? 'theme-dark' : 'theme-light'
     if (this.theme === next) return
     this.theme = next
-    this.bumpEditor()
   }
 
+  /** From home: open a new window. From editor: replace current document. */
   newDocument(type: DocType = 'docx') {
+    if (this.isHomeWindow) {
+      openEditorWindow({ type })
+      return
+    }
+    this.loadNewDocument(type)
+  }
+
+  loadNewDocument(type: DocType = 'docx') {
     this.file = null
     this.filePath = null
-    this.docType = type
     this.fileName = `Untitled.${type}`
-    this.isDirty = false
-    this.ready = false
-    this.error = null
+    this.view = 'editor'
     this.bumpEditor()
   }
 
-  openFile(file: File, filePath?: string | null) {
-    const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    const mapped = docTypeFromExt(ext)
-    this.file = file
-    this.filePath = filePath || null
-    this.fileName = file.name
-    if (mapped) this.docType = mapped
-    this.isDirty = false
-    this.ready = false
-    this.error = null
-    this.bumpEditor()
+  async openFile(file: File, filePath?: string | null) {
+    const path = filePath || (await resolveFilePath(file))
+    await this.openPath(path)
   }
 
   async openPath(filePath: string) {
+    if (this.isHomeWindow) {
+      this.rememberPath(filePath)
+      openEditorWindow({ path: filePath })
+      return
+    }
+    await this.loadPath(filePath)
+  }
+
+  async loadPath(filePath: string) {
     const data = await tinker.readFile(filePath)
     const name = basename(filePath)
     const bytes = toUint8Array(data)
     const file = new File([bytes.slice()], name)
-    this.openFile(file, filePath)
+
+    runInAction(() => {
+      this.file = file
+      this.filePath = filePath
+      this.fileName = name
+      this.view = 'editor'
+      this.bumpEditor()
+      this.rememberPath(filePath)
+    })
+  }
+
+  async openRecent(record: RecentFileRecord) {
+    try {
+      await this.openPath(record.path)
+    } catch (error) {
+      this.removeRecent(record.path)
+      this.setError(error)
+    }
   }
 
   async pickAndOpen() {
@@ -110,9 +175,7 @@ export class Store {
     try {
       await this.openPath(result.filePaths[0])
     } catch (error) {
-      runInAction(() => {
-        this.error = toErrorMessage(error)
-      })
+      this.setError(error)
     }
   }
 
@@ -133,7 +196,7 @@ export class Store {
     runInAction(() => {
       this.filePath = result.filePath!
       this.fileName = basename(result.filePath!)
-      this.isDirty = false
+      this.rememberPath(result.filePath!)
     })
   }
 
