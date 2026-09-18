@@ -1,6 +1,7 @@
 import filter from 'licia/filter'
 import isArr from 'licia/isArr'
 import isNum from 'licia/isNum'
+import isObj from 'licia/isObj'
 import isStr from 'licia/isStr'
 import { basename, docTypeFromExt } from '../types'
 import storage, { STORAGE_RECENT } from './util'
@@ -15,7 +16,7 @@ export interface RecentFileRecord {
 const MAX_RECENT = 20
 
 function isRecentFileRecord(item: unknown): item is RecentFileRecord {
-  if (!item || typeof item !== 'object') return false
+  if (!isObj(item)) return false
   const rec = item as RecentFileRecord
   return (
     isStr(rec.path) &&

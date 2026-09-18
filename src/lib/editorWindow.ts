@@ -4,36 +4,7 @@ import { basename } from '../types'
 export type LaunchParams =
   { mode: 'path'; path: string } | { mode: 'new'; type: DocType }
 
-declare global {
-  interface Window {
-    tinker: typeof tinker
-    __OFFICE_LAUNCH__?: LaunchParams
-  }
-}
-
-/**
- * Child windows from window.open have no plugin preload.
- * Copy tinker from the opener (or top) before any tinker.* call.
- */
-export function ensureTinker(): void {
-  const w = window as Window & { tinker?: typeof tinker }
-  if (w.tinker) return
-  try {
-    const parent = (window.opener ||
-      (window.top !== window ? window.top : null)) as Window | null
-    if (parent?.tinker) {
-      w.tinker = parent.tinker
-    }
-  } catch {
-    // ignore cross-origin
-  }
-}
-
-ensureTinker()
-
 export function getLaunchParams(): LaunchParams | null {
-  if (window.__OFFICE_LAUNCH__) return window.__OFFICE_LAUNCH__
-
   const params = new URLSearchParams(window.location.search)
   const path = params.get('path')
   if (path) return { mode: 'path', path }
@@ -45,15 +16,9 @@ export function getLaunchParams(): LaunchParams | null {
   return null
 }
 
-function buildWindowName(target: { path: string } | { type: DocType }) {
-  if ('path' in target) return `office-path:${target.path}`
-  return `office-new:${target.type}:${Date.now()}`
-}
-
-/** Open (or focus) an editor window for a path or blank document. */
 export function openEditorWindow(
   target: { path: string } | { type: DocType },
-): Window {
+): void {
   const url = new URL(window.location.href)
   url.search = ''
   url.hash = ''
@@ -61,6 +26,8 @@ export function openEditorWindow(
     url.searchParams.set('path', target.path)
   } else {
     url.searchParams.set('new', target.type)
+    // Blank docs share `?new=docx`; a unique id keeps each one a new window.
+    url.searchParams.set('id', String(Date.now()))
   }
 
   const features = [
@@ -72,29 +39,16 @@ export function openEditorWindow(
     'frame=no',
   ].join(',')
 
-  const popup = window.open(url.toString(), buildWindowName(target), features)
+  // _blank: a named target navigates (reloads) an existing window. The host
+  // focuses a child that is already on this exact plugin:// URL.
+  const popup = window.open(url.href, '_blank', features)
   if (!popup) {
     throw new Error('Failed to open editor window (popup blocked?)')
   }
-
-  // Best-effort: set before/while navigation (page will also pull from opener).
-  try {
-    popup.tinker = tinker
-    popup.__OFFICE_LAUNCH__ =
-      'path' in target
-        ? { mode: 'path', path: target.path }
-        : { mode: 'new', type: target.type }
-  } catch {
-    // navigating window may throw
-  }
-
-  popup.focus()
-  return popup
 }
 
 /** Ensure a File has a filesystem path (write temp copy if needed). */
 export async function resolveFilePath(file: File): Promise<string> {
-  ensureTinker()
   const existing = tinker.getPathForFile(file)
   if (existing) return existing
 

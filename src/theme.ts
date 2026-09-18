@@ -18,6 +18,7 @@ export const tw = {
 
   accent: {
     text: 'text-[#185abd]',
+    on: 'text-white',
     bg: 'bg-[#185abd]',
     bgHover: 'hover:bg-[#0f4a9c]',
     ring: 'ring-[#185abd]',

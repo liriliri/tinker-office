@@ -1,6 +1,6 @@
 {
   "name": "tinker-office",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Office document editor plugin for TINKER",
   "repository": {
     "type": "git",

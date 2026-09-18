@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useTranslation } from 'react-i18next'
 import className from 'licia/className'
@@ -12,6 +12,14 @@ import {
 } from '../lib/x2t'
 import store from '../store'
 import { tw } from '../theme'
+
+const DRAG_STRIP_STYLE = {
+  left: 260,
+  right: 120,
+  WebkitAppRegion: 'drag',
+} as CSSProperties
+
+const NO_DRAG_STYLE = { WebkitAppRegion: 'no-drag' } as CSSProperties
 
 /** Make OnlyOffice's own header a frameless drag region (iframe CSS). */
 function injectTitlebarDragCss() {
@@ -266,13 +274,7 @@ const OfficeEditor = observer(function OfficeEditor() {
       <div
         aria-hidden
         className="absolute top-0 z-40 h-7"
-        style={
-          {
-            left: 260,
-            right: 120,
-            WebkitAppRegion: 'drag',
-          } as React.CSSProperties
-        }
+        style={DRAG_STRIP_STYLE}
       />
       <button
         type="button"
@@ -282,7 +284,7 @@ const OfficeEditor = observer(function OfficeEditor() {
           'absolute top-1 right-1.5 z-50 inline-flex h-5 w-5 items-center justify-center rounded transition-colors',
           tw.editor.closeBtn,
         )}
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        style={NO_DRAG_STYLE}
       >
         <X size={12} strokeWidth={2.5} />
       </button>

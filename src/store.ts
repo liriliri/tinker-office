@@ -8,14 +8,11 @@ import {
   type RecentFileRecord,
 } from './lib/recentFiles'
 import {
-  ensureTinker,
   getLaunchParams,
   openEditorWindow,
   type LaunchParams,
 } from './lib/editorWindow'
 import { fileExists, toUint8Array } from './lib/util'
-
-ensureTinker()
 
 type EditorTheme = 'theme-light' | 'theme-dark'
 type AppView = 'home' | 'editor'

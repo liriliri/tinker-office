@@ -48,7 +48,7 @@ export function toUint8Array(data: unknown): Uint8Array {
   throw new Error('Unsupported file data type')
 }
 
-export interface DocumentTypeConfig {
+interface DocumentTypeConfig {
   type: string
   icon: string
   /** Brand accent for the doc family (Word / Excel / PowerPoint). */

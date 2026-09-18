@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useTranslation } from 'react-i18next'
 import className from 'licia/className'
@@ -27,6 +27,10 @@ function formatRecentTime(
   if ('date' in rel) return rel.date || t('timeUnknown')
   if (rel.key === 'timeJustNow') return t(rel.key)
   return t(rel.key, { count: rel.count })
+}
+
+function accentBarStyle(color: string): CSSProperties {
+  return { backgroundColor: color }
 }
 
 const HomeView = observer(function HomeView() {
@@ -125,7 +129,7 @@ const HomeView = observer(function HomeView() {
                   >
                     <span
                       className="h-7 w-0.5 shrink-0 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-                      style={{ backgroundColor: accent }}
+                      style={accentBarStyle(accent)}
                       aria-hidden
                     />
                     <DocumentIcon type={type} size="sm" className="!h-7 !w-7" />
@@ -222,7 +226,8 @@ const HomeView = observer(function HomeView() {
                 type="button"
                 onClick={() => store.pickAndOpen()}
                 className={className(
-                  'mt-3 rounded-sm px-3 py-1.5 text-[12px] font-medium text-white',
+                  'mt-3 rounded-sm px-3 py-1.5 text-[12px] font-medium',
+                  tw.accent.on,
                   tw.accent.bg,
                   tw.accent.bgHover,
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',

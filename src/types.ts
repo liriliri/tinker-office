@@ -1,3 +1,5 @@
+import last from 'licia/last'
+
 export type DocType = 'docx' | 'xlsx' | 'pptx'
 
 export const OFFICE_EXTENSIONS = [
@@ -36,6 +38,5 @@ export function docTypeFromExt(ext: string): DocType | undefined {
 
 export function basename(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/')
-  const parts = normalized.split('/')
-  return parts[parts.length - 1] || filePath
+  return last(normalized.split('/')) || filePath
 }
