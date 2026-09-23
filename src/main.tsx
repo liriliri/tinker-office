@@ -41,11 +41,6 @@ const OfficeApp = observer(() => {
 })
 
 ;(async function () {
-  const applyTheme = (theme: string) => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    store.setThemeFromApp(theme)
-  }
-
   const [language, theme] = await Promise.all([
     tinker.getLanguage(),
     tinker.getTheme(),
@@ -53,11 +48,11 @@ const OfficeApp = observer(() => {
 
   i18n.changeLanguage(language)
   store.setLanguage(language)
-  applyTheme(theme)
+  store.setThemeFromApp(theme)
   store.loadRecentFiles()
   await store.initFromLaunch()
 
-  tinker.on('changeTheme', applyTheme)
+  tinker.on('changeTheme', (theme: string) => store.setThemeFromApp(theme))
   tinker.on('changeLanguage', (lang: string) => {
     i18n.changeLanguage(lang)
     store.setLanguage(lang)
